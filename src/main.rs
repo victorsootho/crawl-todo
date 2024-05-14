@@ -1,8 +1,18 @@
 use chrono::{Datelike, Duration, NaiveDateTime, Utc};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::fs::{File, OpenOptions};
 use std::io;
+use std::io::{BufReader, BufWriter};
+
+#[derive(Serialize, Deserialize, Debug)]
+struct UserSettings {
+    end_time: Option<String>,
+}
 
 fn main() {
+    let mut user_settings = load_user_settings();
+
     let current_time = Utc::now() + Duration::hours(2);
 
     println!(
@@ -15,12 +25,31 @@ fn main() {
 
     println!("Schedule for {}, {}", formatted_date, current_weekday);
 
-    let end_of_day = NaiveDateTime::parse_from_str(
-        &format!("{} 23:00:00", current_time.format("%Y-%m-%d")),
-        "%Y-%m-%d %H:%M:%S",
-    )
-    .expect("Invalid date format")
-    .and_utc();
+    // The hour at which the day closes
+    let end_of_day = match &user_settings.end_time {
+        Some(end_time) => NaiveDateTime::parse_from_str(
+            &format!("{} {}", current_time.format("%Y-%m-%d"), end_time),
+            "%Y-%m-%d %H:%M:%S",
+        )
+        .expect("Invalid date format")
+        .and_utc(),
+        None => {
+            println!("Enter the desired end time for your day (e.g., 23:00:00):");
+            let mut end_time = String::new();
+            io::stdin()
+                .read_line(&mut end_time)
+                .expect("Failed to read line");
+            let end_time = end_time.trim().to_string();
+            user_settings.end_time = Some(end_time.clone());
+            save_user_settings(&user_settings);
+            NaiveDateTime::parse_from_str(
+                &format!("{} {}", current_time.format("%Y-%m-%d"), end_time),
+                "%Y-%m-%d %H:%M:%S",
+            )
+            .expect("Invalid date format")
+            .and_utc()
+        }
+    };
 
     let remaining_hours = end_of_day - current_time;
     let hours_left = remaining_hours.num_hours();
@@ -87,4 +116,21 @@ fn main() {
             );
         }
     }
+}
+
+fn load_user_settings() -> UserSettings {
+    let file = File::open("user_settings.json")
+        .unwrap_or_else(|_| File::create("user_settings.json").unwrap());
+    let reader = BufReader::new(file);
+    serde_json::from_reader(reader).unwrap_or_else(|_| UserSettings { end_time: None })
+}
+
+fn save_user_settings(user_settings: &UserSettings) {
+    let file = OpenOptions::new()
+        .write(true)
+        .truncate(true)
+        .open("user_settings.json")
+        .unwrap();
+    let writer = BufWriter::new(file);
+    serde_json::to_writer_pretty(writer, user_settings).unwrap();
 }
