@@ -1,4 +1,5 @@
 use chrono::{Datelike, Duration, NaiveDateTime, NaiveTime, Utc};
+use colored::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs::{File, OpenOptions};
@@ -23,11 +24,11 @@ struct UserSettings {
 }
 
 impl UserSettings {
-    fn new() -> Self {
+    fn new(date: String) -> Self {
         UserSettings {
             end_time: None,
             today: TodaysTasks {
-                date: Utc::now().format("%d/%m/%Y").to_string(),
+                date,
                 todays_tasks: HashMap::new(),
             },
         }
@@ -104,8 +105,12 @@ fn main() {
     let minutes_productive = total_productivity_minutes % 60;
 
     println!(
-        "You have been productive for {} hours and {} minutes",
-        hours_productive, minutes_productive
+        "{}",
+        format!(
+            "\nYou have been productive for {} hours and {} minutes",
+            hours_productive, minutes_productive
+        )
+        .green()
     );
 
     for (task, task_data) in &user_settings.today.todays_tasks {
@@ -169,8 +174,12 @@ fn main() {
         let minutes_productive = total_productivity_minutes % 60;
 
         println!(
-            "You have been productive for {} hours and {} minutes",
-            hours_productive, minutes_productive
+            "{}",
+            format!(
+                "You have been productive for {} hours and {} minutes",
+                hours_productive, minutes_productive
+            )
+            .green()
         );
 
         for (task, task_data) in &user_settings.today.todays_tasks {
@@ -209,7 +218,8 @@ fn load_user_settings() -> UserSettings {
     let file = File::open("user_settings.json")
         .unwrap_or_else(|_| File::create("user_settings.json").unwrap());
     let reader = BufReader::new(file);
-    serde_json::from_reader(reader).unwrap_or_else(|_| UserSettings::new())
+    serde_json::from_reader(reader)
+        .unwrap_or_else(|_| UserSettings::new(Utc::now().format("%d/%m/%Y").to_string()))
 }
 
 fn save_user_settings(user_settings: &UserSettings) {
