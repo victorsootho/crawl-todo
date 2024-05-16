@@ -6,8 +6,32 @@ use std::io;
 use std::io::{BufReader, BufWriter};
 
 #[derive(Serialize, Deserialize, Debug)]
+struct Task {
+    minutes_spent: u64,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct TodaysTasks {
+    date: String,
+    todays_tasks: HashMap<String, Task>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
 struct UserSettings {
     end_time: Option<String>,
+    today: TodaysTasks,
+}
+
+impl UserSettings {
+    fn new() -> Self {
+        UserSettings {
+            end_time: None,
+            today: TodaysTasks {
+                date: Utc::now().format("%d/%m/%Y").to_string(),
+                todays_tasks: HashMap::new(),
+            },
+        }
+    }
 }
 
 fn main() {
@@ -22,6 +46,14 @@ fn main() {
 
     let current_weekday = current_time.date_naive().weekday();
     let formatted_date = current_time.format("%d/%m/%Y").to_string();
+
+    // Check if the date has changed
+    if user_settings.today.date != formatted_date {
+        user_settings.today = TodaysTasks {
+            date: formatted_date.clone(),
+            todays_tasks: HashMap::new(),
+        };
+    }
 
     println!("Schedule for {}, {}", formatted_date, current_weekday);
 
@@ -62,7 +94,6 @@ fn main() {
 
     println!("Here Are Today's and Tomorrow's Deadlines");
 
-    let mut task_durations: HashMap<String, u64> = HashMap::new();
     let mut total_productivity_minutes: u64 = 0;
 
     loop {
@@ -93,6 +124,7 @@ fn main() {
             "Enter start time for {} (HH:MM) or 'now' for the current time:",
             task_name
         ));
+
         let end_time = prompt_for_time(&format!(
             "Enter end time for {} (HH:MM) or 'now' for the current time:",
             task_name
@@ -101,7 +133,13 @@ fn main() {
         let duration = end_time.signed_duration_since(start_time);
         let duration_minutes = duration.num_minutes() as u64;
 
-        *task_durations.entry(task_name.to_string()).or_insert(0) += duration_minutes;
+        let task_entry = user_settings
+            .today
+            .todays_tasks
+            .entry(task_name.to_string())
+            .or_insert(Task { minutes_spent: 0 });
+        task_entry.minutes_spent += duration_minutes;
+
         total_productivity_minutes += duration_minutes;
 
         let hours_productive = total_productivity_minutes / 60;
@@ -112,14 +150,16 @@ fn main() {
             hours_productive, minutes_productive
         );
 
-        for (task, duration) in &task_durations {
-            let task_hours = *duration / 60;
-            let task_minutes = *duration % 60;
+        for (task, task_data) in &user_settings.today.todays_tasks {
+            let task_hours = task_data.minutes_spent / 60;
+            let task_minutes = task_data.minutes_spent % 60;
             println!(
                 "{}: {} hours and {} minutes",
                 task, task_hours, task_minutes
             );
         }
+
+        save_user_settings(&user_settings);
     }
 }
 
@@ -132,7 +172,7 @@ fn prompt_for_time(prompt: &str) -> NaiveTime {
             .expect("Failed to read line");
         let time_input = time_input.trim();
         if time_input.eq_ignore_ascii_case("now") {
-            return Utc::now().time();
+            return (Utc::now() + Duration::hours(2)).time();
         } else {
             match NaiveTime::parse_from_str(time_input, "%H:%M") {
                 Ok(time) => return time,
@@ -146,7 +186,7 @@ fn load_user_settings() -> UserSettings {
     let file = File::open("user_settings.json")
         .unwrap_or_else(|_| File::create("user_settings.json").unwrap());
     let reader = BufReader::new(file);
-    serde_json::from_reader(reader).unwrap_or_else(|_| UserSettings { end_time: None })
+    serde_json::from_reader(reader).unwrap_or_else(|_| UserSettings::new())
 }
 
 fn save_user_settings(user_settings: &UserSettings) {
