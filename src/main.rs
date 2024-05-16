@@ -1,4 +1,4 @@
-use chrono::{Datelike, Duration, NaiveDateTime, Utc};
+use chrono::{Datelike, Duration, NaiveDateTime, NaiveTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs::{File, OpenOptions};
@@ -89,15 +89,20 @@ fn main() {
             }
         };
 
-        println!("Enter duration for {} (in minutes):", task_name);
-        let mut duration_input = String::new();
-        io::stdin()
-            .read_line(&mut duration_input)
-            .expect("Failed to read line");
-        let duration: u64 = duration_input.trim().parse().expect("Invalid duration");
+        let start_time = prompt_for_time(&format!(
+            "Enter start time for {} (HH:MM) or 'now' for the current time:",
+            task_name
+        ));
+        let end_time = prompt_for_time(&format!(
+            "Enter end time for {} (HH:MM) or 'now' for the current time:",
+            task_name
+        ));
 
-        *task_durations.entry(task_name.to_string()).or_insert(0) += duration;
-        total_productivity_minutes += duration;
+        let duration = end_time.signed_duration_since(start_time);
+        let duration_minutes = duration.num_minutes() as u64;
+
+        *task_durations.entry(task_name.to_string()).or_insert(0) += duration_minutes;
+        total_productivity_minutes += duration_minutes;
 
         let hours_productive = total_productivity_minutes / 60;
         let minutes_productive = total_productivity_minutes % 60;
@@ -114,6 +119,25 @@ fn main() {
                 "{}: {} hours and {} minutes",
                 task, task_hours, task_minutes
             );
+        }
+    }
+}
+
+fn prompt_for_time(prompt: &str) -> NaiveTime {
+    loop {
+        println!("{}", prompt);
+        let mut time_input = String::new();
+        io::stdin()
+            .read_line(&mut time_input)
+            .expect("Failed to read line");
+        let time_input = time_input.trim();
+        if time_input.eq_ignore_ascii_case("now") {
+            return Utc::now().time();
+        } else {
+            match NaiveTime::parse_from_str(time_input, "%H:%M") {
+                Ok(time) => return time,
+                Err(_) => println!("Invalid time format. Please try again."),
+            }
         }
     }
 }
