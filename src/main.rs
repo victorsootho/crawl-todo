@@ -92,9 +92,32 @@ fn main() {
         hours_left, minutes_left
     );
 
-    println!("Here Are Today's and Tomorrow's Deadlines");
+    // Calculate total productive minutes from saved tasks
+    let mut total_productivity_minutes: u64 = user_settings
+        .today
+        .todays_tasks
+        .values()
+        .map(|task| task.minutes_spent)
+        .sum();
 
-    let mut total_productivity_minutes: u64 = 0;
+    let hours_productive = total_productivity_minutes / 60;
+    let minutes_productive = total_productivity_minutes % 60;
+
+    println!(
+        "You have been productive for {} hours and {} minutes",
+        hours_productive, minutes_productive
+    );
+
+    for (task, task_data) in &user_settings.today.todays_tasks {
+        let task_hours = task_data.minutes_spent / 60;
+        let task_minutes = task_data.minutes_spent % 60;
+        println!(
+            "{}: {} hours and {} minutes",
+            task, task_hours, task_minutes
+        );
+    }
+
+    println!("Here Are Today's and Tomorrow's Deadlines");
 
     loop {
         println!("Enter task code (C for Coding, R for Reading, A for Audio, W for Writing, L for Learning, or X to exit):");
