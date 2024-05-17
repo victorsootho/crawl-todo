@@ -125,7 +125,7 @@ fn main() {
     println!("Here Are Today's and Tomorrow's Deadlines");
 
     loop {
-        println!("Enter task code (C for Coding, R for Reading, A for Audio, W for Writing, L for Learning, or X to exit):");
+        println!("\nEnter task code (C for Coding, R for Reading, A for Audio, W for Writing, L for Learning, or X to exit):");
         let mut task_code = String::new();
         io::stdin()
             .read_line(&mut task_code)
@@ -148,17 +148,29 @@ fn main() {
             }
         };
 
-        let start_time = prompt_for_time(&format!(
+        let start_time_prompt = get_time_from_user(&format!(
             "Enter start time for {} (HH:MM) or 'now' for the current time:",
             task_name
         ));
 
-        let end_time = prompt_for_time(&format!(
-            "Enter end time for {} (HH:MM) or 'now' for the current time:",
+        let end_time_prompt = format!(
+            "Started at {} Enter end time for {} (HH:MM) or 'now' for the current time:",
+            start_time_prompt.format("%H:%M"),
             task_name
-        ));
+        )
+        .red()
+        .to_string();
 
-        let duration = end_time.signed_duration_since(start_time);
+        let end_time = get_time_from_user(&end_time_prompt);
+
+        let duration = end_time.signed_duration_since(start_time_prompt);
+
+        println!(
+            "\nYou Spent {} Minutes {}",
+            duration.num_minutes(),
+            task_name
+        );
+
         let duration_minutes = duration.num_minutes() as u64;
 
         let task_entry = user_settings
@@ -195,7 +207,7 @@ fn main() {
     }
 }
 
-fn prompt_for_time(prompt: &str) -> NaiveTime {
+fn get_time_from_user(prompt: &str) -> NaiveTime {
     loop {
         println!("{}", prompt);
         let mut time_input = String::new();
@@ -205,6 +217,12 @@ fn prompt_for_time(prompt: &str) -> NaiveTime {
         let time_input = time_input.trim();
         if time_input.eq_ignore_ascii_case("now") {
             return (Utc::now() + Duration::hours(2)).time();
+        } else if time_input.len() == 4 && time_input.chars().all(char::is_numeric) {
+            let formatted_time = format!("{}:{}", &time_input[0..2], &time_input[2..4]);
+            match NaiveTime::parse_from_str(&formatted_time, "%H:%M") {
+                Ok(time) => return time,
+                Err(_) => println!("Invalid time format. Please try again."),
+            }
         } else {
             match NaiveTime::parse_from_str(time_input, "%H:%M") {
                 Ok(time) => return time,
