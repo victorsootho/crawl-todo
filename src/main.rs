@@ -14,6 +14,7 @@ struct Task {
 #[derive(Serialize, Deserialize, Debug)]
 struct TodaysTasks {
     date: String,
+    start_time: Option<String>,
     todays_tasks: HashMap<String, Task>,
 }
 
@@ -29,6 +30,7 @@ impl UserSettings {
             end_time: None,
             today: TodaysTasks {
                 date,
+                start_time: None,
                 todays_tasks: HashMap::new(),
             },
         }
@@ -40,21 +42,42 @@ fn main() {
 
     let current_time = Utc::now() + Duration::hours(2);
 
+    let formatted_date = current_time.format("%d/%m/%Y").to_string();
+
+    // Check if the date has changed and reset the start time if it has
+    if user_settings.today.date != formatted_date {
+        user_settings.today = TodaysTasks {
+            date: formatted_date.clone(),
+            start_time: Some(current_time.format("%H:%M:%S").to_string()),
+            todays_tasks: HashMap::new(),
+        };
+        save_user_settings(&user_settings);
+    }
+
+    let default_start_time = "Unknown".to_string();
+    let start_time = user_settings
+        .today
+        .start_time
+        .as_ref()
+        .unwrap_or(&default_start_time);
+
     println!(
-        "Welcome to a new day. Time is {}",
+        "Welcome to a new day. You started today at {}. Current time is {}",
+        start_time,
         current_time.format("%H:%M:%S")
     );
 
     let current_weekday = current_time.date_naive().weekday();
-    let formatted_date = current_time.format("%d/%m/%Y").to_string();
 
-    // Check if the date has changed
-    if user_settings.today.date != formatted_date {
-        user_settings.today = TodaysTasks {
-            date: formatted_date.clone(),
-            todays_tasks: HashMap::new(),
-        };
-    }
+    let start_time = NaiveTime::parse_from_str(
+        user_settings
+            .today
+            .start_time
+            .as_deref()
+            .unwrap_or("00:00:00"),
+        "%H:%M:%S",
+    )
+    .expect("Invalid start time format");
 
     println!("Schedule for {}, {}", formatted_date, current_weekday);
 
@@ -83,6 +106,22 @@ fn main() {
             .and_utc()
         }
     };
+
+    let end_time = end_of_day.time();
+
+    // Calculate the duration between start_time and end_time
+    let day_duration = end_time.signed_duration_since(start_time);
+    let total_hours = day_duration.num_hours();
+    let total_minutes = day_duration.num_minutes() % 60;
+
+    println!(
+        "{}",
+        format!(
+            "You have {} hours and {} minutes to seize the day",
+            total_hours, total_minutes
+        )
+        .green()
+    );
 
     let remaining_hours = end_of_day - current_time;
     let hours_left = remaining_hours.num_hours();
