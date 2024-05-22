@@ -6,22 +6,23 @@ use std::fs::{File, OpenOptions};
 use std::io;
 use std::io::{BufReader, BufWriter};
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 struct Task {
     minutes_spent: u64,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 struct TodaysTasks {
     date: String,
     start_time: Option<String>,
     todays_tasks: HashMap<String, Task>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 struct UserSettings {
     end_time: Option<String>,
     today: TodaysTasks,
+    past_tasks: Vec<TodaysTasks>,
 }
 
 impl UserSettings {
@@ -33,6 +34,7 @@ impl UserSettings {
                 start_time: None,
                 todays_tasks: HashMap::new(),
             },
+            past_tasks: Vec::new(),
         }
     }
 }
@@ -44,8 +46,9 @@ fn main() {
 
     let formatted_date = current_time.format("%d/%m/%Y").to_string();
 
-    // Check if the date has changed and reset the start time if it has
+    // Check if the date has changed and move the today object to past_tasks if it has
     if user_settings.today.date != formatted_date {
+        user_settings.past_tasks.push(user_settings.today.clone());
         user_settings.today = TodaysTasks {
             date: formatted_date.clone(),
             start_time: Some(current_time.format("%H:%M:%S").to_string()),
