@@ -16,7 +16,8 @@ struct TodaysTasks {
     date: String,
     start_time: Option<String>,
     todays_tasks: HashMap<String, Task>,
-    todays_chores: HashMap<String, Task>, // New field for chores
+    todays_chores: HashMap<String, Task>,
+    todays_entertainment: HashMap<String, Task>, // New field for entertainment
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -34,7 +35,8 @@ impl UserSettings {
                 date,
                 start_time: None,
                 todays_tasks: HashMap::new(),
-                todays_chores: HashMap::new(), // Initialize the chores HashMap
+                todays_chores: HashMap::new(),
+                todays_entertainment: HashMap::new(), // Initialize the entertainment HashMap
             },
             past_tasks: Vec::new(),
         }
@@ -55,7 +57,8 @@ fn main() {
             date: formatted_date.clone(),
             start_time: Some(current_time.format("%H:%M:%S").to_string()),
             todays_tasks: HashMap::new(),
-            todays_chores: HashMap::new(), // Initialize the chores HashMap
+            todays_chores: HashMap::new(),
+            todays_entertainment: HashMap::new(), // Initialize the entertainment HashMap
         };
         save_user_settings(&user_settings);
     }
@@ -88,28 +91,42 @@ fn main() {
     println!("Schedule for {}, {}", formatted_date, current_weekday);
 
     // The hour at which the day closes
-    let end_of_day = match &user_settings.end_time {
-        Some(end_time) => NaiveDateTime::parse_from_str(
-            &format!("{} {}", current_time.format("%Y-%m-%d"), end_time),
-            "%Y-%m-%d %H:%M:%S",
-        )
-        .expect("Invalid date format")
-        .and_utc(),
-        None => {
-            println!("Enter the desired end time for your day (e.g., 23:00:00):");
-            let mut end_time = String::new();
-            io::stdin()
-                .read_line(&mut end_time)
-                .expect("Failed to read line");
-            let end_time = end_time.trim().to_string();
-            user_settings.end_time = Some(end_time.clone());
-            save_user_settings(&user_settings);
-            NaiveDateTime::parse_from_str(
-                &format!("{} {}", current_time.format("%Y-%m-%d"), end_time),
-                "%Y-%m-%d %H:%M:%S",
-            )
-            .expect("Invalid date format")
-            .and_utc()
+    let end_of_day = loop {
+        match &user_settings.end_time {
+            Some(end_time) => {
+                match NaiveDateTime::parse_from_str(
+                    &format!("{} {}", current_time.format("%Y-%m-%d"), end_time),
+                    "%Y-%m-%d %H:%M:%S",
+                ) {
+                    Ok(datetime) => break datetime.and_utc(),
+                    Err(_) => {
+                        println!("Invalid end time format. Please try again.");
+                        continue;
+                    }
+                }
+            }
+            None => {
+                println!("Enter the desired end time for your day (e.g., 23:00:00):");
+                let mut end_time = String::new();
+                io::stdin()
+                    .read_line(&mut end_time)
+                    .expect("Failed to read line");
+                let end_time = end_time.trim().to_string();
+                match NaiveDateTime::parse_from_str(
+                    &format!("{} {}", current_time.format("%Y-%m-%d"), end_time),
+                    "%Y-%m-%d %H:%M:%S",
+                ) {
+                    Ok(datetime) => {
+                        user_settings.end_time = Some(end_time.clone());
+                        save_user_settings(&user_settings);
+                        break datetime.and_utc();
+                    }
+                    Err(_) => {
+                        println!("Invalid end time format. Please try again.");
+                        continue;
+                    }
+                }
+            }
         }
     };
 
@@ -170,7 +187,7 @@ fn main() {
     println!("Here Are Today's and Tomorrow's Deadlines");
 
     loop {
-        println!("\nEnter task code (C for Coding, R for Reading, A for Audio, W for Writing, L for Learning, Ch for Chores or X to exit):");
+        println!("\nEnter task code (C for Coding, R for Reading, A for Audio, W for Writing, L for Learning, Ch for Chores, E for Entertainment, or X to exit):");
         let mut task_code = String::new();
         io::stdin()
             .read_line(&mut task_code)
@@ -187,7 +204,8 @@ fn main() {
             "a" => "Audio",
             "w" => "Writing",
             "l" => "Learning",
-            "ch" => "Chores", // Add the new case for "Chores"
+            "ch" => "Chores",
+            "e" => "Entertainment", // Add the new case for "Entertainment"
             _ => {
                 println!("Invalid task code. Please try again.");
                 continue;
@@ -219,7 +237,21 @@ fn main() {
 
         let duration_minutes = duration.num_minutes() as u64;
 
-        if task_name != "Chores" {
+        if task_name == "Chores" {
+            let task_entry = user_settings
+                .today
+                .todays_chores
+                .entry(task_name.to_string())
+                .or_insert(Task { minutes_spent: 0 });
+            task_entry.minutes_spent += duration_minutes;
+        } else if task_name == "Entertainment" {
+            let task_entry = user_settings
+                .today
+                .todays_entertainment
+                .entry(task_name.to_string())
+                .or_insert(Task { minutes_spent: 0 });
+            task_entry.minutes_spent += duration_minutes;
+        } else {
             let task_entry = user_settings
                 .today
                 .todays_tasks
@@ -228,13 +260,6 @@ fn main() {
             task_entry.minutes_spent += duration_minutes;
 
             total_productivity_minutes += duration_minutes;
-        } else {
-            let task_entry = user_settings
-                .today
-                .todays_chores
-                .entry(task_name.to_string())
-                .or_insert(Task { minutes_spent: 0 });
-            task_entry.minutes_spent += duration_minutes;
         }
 
         let hours_productive = total_productivity_minutes / 60;
@@ -265,6 +290,16 @@ fn main() {
             println!(
                 "{}: {} hours and {} minutes",
                 chore, chore_hours, chore_minutes
+            );
+        }
+
+        // Print entertainment separately
+        for (entertainment, entertainment_data) in &user_settings.today.todays_entertainment {
+            let entertainment_hours = entertainment_data.minutes_spent / 60;
+            let entertainment_minutes = entertainment_data.minutes_spent % 60;
+            println!(
+                "{}: {} hours and {} minutes",
+                entertainment, entertainment_hours, entertainment_minutes
             );
         }
 
