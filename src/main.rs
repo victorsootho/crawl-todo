@@ -16,6 +16,7 @@ struct TodaysTasks {
     date: String,
     start_time: Option<String>,
     todays_tasks: HashMap<String, Task>,
+    todays_chores: HashMap<String, Task>, // New field for chores
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -33,6 +34,7 @@ impl UserSettings {
                 date,
                 start_time: None,
                 todays_tasks: HashMap::new(),
+                todays_chores: HashMap::new(), // Initialize the chores HashMap
             },
             past_tasks: Vec::new(),
         }
@@ -53,6 +55,7 @@ fn main() {
             date: formatted_date.clone(),
             start_time: Some(current_time.format("%H:%M:%S").to_string()),
             todays_tasks: HashMap::new(),
+            todays_chores: HashMap::new(), // Initialize the chores HashMap
         };
         save_user_settings(&user_settings);
     }
@@ -167,7 +170,7 @@ fn main() {
     println!("Here Are Today's and Tomorrow's Deadlines");
 
     loop {
-        println!("\nEnter task code (C for Coding, R for Reading, A for Audio, W for Writing, L for Learning, or X to exit):");
+        println!("\nEnter task code (C for Coding, R for Reading, A for Audio, W for Writing, L for Learning, Ch for Chores or X to exit):");
         let mut task_code = String::new();
         io::stdin()
             .read_line(&mut task_code)
@@ -184,6 +187,7 @@ fn main() {
             "a" => "Audio",
             "w" => "Writing",
             "l" => "Learning",
+            "ch" => "Chores", // Add the new case for "Chores"
             _ => {
                 println!("Invalid task code. Please try again.");
                 continue;
@@ -215,14 +219,23 @@ fn main() {
 
         let duration_minutes = duration.num_minutes() as u64;
 
-        let task_entry = user_settings
-            .today
-            .todays_tasks
-            .entry(task_name.to_string())
-            .or_insert(Task { minutes_spent: 0 });
-        task_entry.minutes_spent += duration_minutes;
+        if task_name != "Chores" {
+            let task_entry = user_settings
+                .today
+                .todays_tasks
+                .entry(task_name.to_string())
+                .or_insert(Task { minutes_spent: 0 });
+            task_entry.minutes_spent += duration_minutes;
 
-        total_productivity_minutes += duration_minutes;
+            total_productivity_minutes += duration_minutes;
+        } else {
+            let task_entry = user_settings
+                .today
+                .todays_chores
+                .entry(task_name.to_string())
+                .or_insert(Task { minutes_spent: 0 });
+            task_entry.minutes_spent += duration_minutes;
+        }
 
         let hours_productive = total_productivity_minutes / 60;
         let minutes_productive = total_productivity_minutes % 60;
@@ -242,6 +255,16 @@ fn main() {
             println!(
                 "{}: {} hours and {} minutes",
                 task, task_hours, task_minutes
+            );
+        }
+
+        // Print chores separately
+        for (chore, chore_data) in &user_settings.today.todays_chores {
+            let chore_hours = chore_data.minutes_spent / 60;
+            let chore_minutes = chore_data.minutes_spent % 60;
+            println!(
+                "{}: {} hours and {} minutes",
+                chore, chore_hours, chore_minutes
             );
         }
 
