@@ -70,23 +70,23 @@ fn main() {
         .as_ref()
         .unwrap_or(&default_start_time);
 
+    let start_time = if start_time == "Unknown" {
+        let user_start_time =
+            get_time_from_user("Enter your start time for today (HH:MM or 'now'):");
+        user_settings.today.start_time = Some(user_start_time.format("%H:%M:%S").to_string());
+        save_user_settings(&user_settings);
+        user_start_time
+    } else {
+        NaiveTime::parse_from_str(start_time, "%H:%M:%S").expect("Invalid start time format")
+    };
+
     println!(
         "Welcome to a new day. You started today at {}. Current time is {}",
-        start_time,
+        start_time.format("%H:%M:%S"),
         current_time.format("%H:%M:%S")
     );
 
     let current_weekday = current_time.date_naive().weekday();
-
-    let start_time = NaiveTime::parse_from_str(
-        user_settings
-            .today
-            .start_time
-            .as_deref()
-            .unwrap_or("00:00:00"),
-        "%H:%M:%S",
-    )
-    .expect("Invalid start time format");
 
     println!("Schedule for {}, {}", formatted_date, current_weekday);
 
