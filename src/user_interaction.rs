@@ -2,6 +2,8 @@ use crate::task::{Task, UserSettings};
 use chrono::Datelike;
 use chrono::{Duration, NaiveTime, Utc};
 use colored::*;
+use serde_json;
+use std::fs;
 use std::io::{self};
 
 pub fn get_time_from_user(prompt: &str) -> NaiveTime {
@@ -104,6 +106,12 @@ pub fn display_summary(
     }
 }
 
+fn save_user_settings(user_settings: &UserSettings) {
+    let json_data =
+        serde_json::to_string_pretty(user_settings).expect("Failed to serialize user settings");
+    fs::write("user_settings.json", json_data).expect("Unable to write to file");
+}
+
 pub fn prompt_task(user_settings: &mut UserSettings) -> bool {
     let mut total_productivity_minutes: u64 = user_settings
         .today
@@ -187,6 +195,8 @@ pub fn prompt_task(user_settings: &mut UserSettings) -> bool {
 
             total_productivity_minutes += duration_minutes;
         }
+
+        save_user_settings(user_settings);
 
         let hours_productive = total_productivity_minutes / 60;
         let minutes_productive = total_productivity_minutes % 60;
