@@ -92,11 +92,18 @@ fn update_task_summary(summary: &mut HashMap<String, u64>, day: &crate::task::To
 }
 
 fn display_task_summary(title: &str, tasks: &HashMap<String, u64>) {
-    println!("\n{}", title);
+    // ANSI escape codes for text formatting
+    const BLUE_BOLD: &str = "\x1b[1;34m";
+    const BOLD: &str = "\x1b[1m";
+    const RESET: &str = "\x1b[0m";
+
+    println!("\n{}{}{}", BLUE_BOLD, title, RESET);
     for (task_name, minutes_spent) in tasks {
         println!(
-            "{}: {} hours and {} minutes",
+            "{}{}{}: {} hours and {} minutes",
+            BOLD,
             task_name,
+            RESET,
             minutes_spent / 60,
             minutes_spent % 60
         );
