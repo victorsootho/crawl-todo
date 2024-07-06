@@ -14,7 +14,7 @@ pub fn get_time_from_user(prompt: &str) -> NaiveTime {
             .read_line(&mut time_input)
             .expect("Failed to read line");
         let time_input = time_input.trim();
-        if time_input.eq_ignore_ascii_case("now") {
+        if time_input.is_empty() || time_input.eq_ignore_ascii_case("now") {
             return (Utc::now() + Duration::hours(2)).time();
         } else if time_input.len() == 4 && time_input.chars().all(char::is_numeric) {
             let formatted_time = format!("{}:{}", &time_input[0..2], &time_input[2..4]);
@@ -78,6 +78,14 @@ pub fn display_summary(
         .green()
     );
 
+    if hours_productive >= 8 {
+        println!("You had a good day")
+    } else if hours_productive >= 4 {
+        println!("You had a good day. It could get better.")
+    } else {
+        println!("Keep Going")
+    }
+
     for (task, task_data) in &user_settings.today.todays_tasks {
         let task_hours = task_data.minutes_spent / 60;
         let task_minutes = task_data.minutes_spent % 60;
@@ -121,7 +129,7 @@ pub fn prompt_task(user_settings: &mut UserSettings) -> bool {
         .sum();
 
     loop {
-        println!("\nEnter task code (C for Coding, R for Reading, A for Audio, W for Writing, L for Learning, Ch for Chores, E for Entertainment, or X to exit):");
+        println!("\nEnter task code (C for Coding, R for Reading, A for Action, W for Writing, L for Learning, Ch for Chores, E for Entertainment, or X to exit):");
         let mut task_code = String::new();
         io::stdin()
             .read_line(&mut task_code)
@@ -135,7 +143,7 @@ pub fn prompt_task(user_settings: &mut UserSettings) -> bool {
         let task_name = match task_code.as_str() {
             "c" => "Coding",
             "r" => "Reading",
-            "a" => "Audio",
+            "a" => "Action",
             "w" => "Writing",
             "l" => "Learning",
             "ch" => "Chores",
@@ -147,12 +155,12 @@ pub fn prompt_task(user_settings: &mut UserSettings) -> bool {
         };
 
         let start_time_prompt = get_time_from_user(&format!(
-            "Enter start time for {} (HH:MM) or 'now' for the current time:",
+            "Enter start time for {} (HH:MM) or 'now' for the current time (default is 'now'):",
             task_name
         ));
 
         let end_time_prompt = format!(
-            "Started at {} Enter end time for {} (HH:MM) or 'now' for the current time:",
+            "Started at {}. Enter end time for {} (HH:MM) or 'now' for the current time (default is 'now'):",
             start_time_prompt.format("%H:%M"),
             task_name
         )

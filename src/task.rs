@@ -71,7 +71,7 @@ impl UserSettings {
                 Some(end_time) => {
                     match chrono::NaiveDateTime::parse_from_str(
                         &format!("{} {}", current_time.format("%Y-%m-%d"), end_time),
-                        "%Y-%m-%d %H:%M:%S",
+                        "%Y-%m-%d %H:%M",
                     ) {
                         Ok(datetime) => break datetime.and_utc(),
                         Err(_) => {
@@ -89,7 +89,7 @@ impl UserSettings {
                     let end_time = end_time.trim().to_string();
                     match chrono::NaiveDateTime::parse_from_str(
                         &format!("{} {}", current_time.format("%Y-%m-%d"), end_time),
-                        "%Y-%m-%d %H:%M:%S",
+                        "%Y-%m-%d %H:%M",
                     ) {
                         Ok(datetime) => {
                             self.end_time = Some(end_time.clone());
@@ -97,7 +97,7 @@ impl UserSettings {
                             break datetime.and_utc();
                         }
                         Err(_) => {
-                            println!("Invalid end time format. Please try again.");
+                            println!("Invalid end time format. Please try again!!");
                             continue;
                         }
                     }
