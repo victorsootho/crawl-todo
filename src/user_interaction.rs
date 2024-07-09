@@ -1,9 +1,8 @@
+use crate::serialization::save_user_settings; // Import save_user_settings function from serialization module
 use crate::task::{Task, UserSettings};
 use chrono::Datelike;
 use chrono::{Duration, NaiveTime, Utc};
 use colored::*;
-use serde_json;
-use std::fs;
 use std::io::{self};
 
 pub fn get_time_from_user(prompt: &str) -> NaiveTime {
@@ -114,12 +113,6 @@ pub fn display_summary(
     }
 }
 
-fn save_user_settings(user_settings: &UserSettings) {
-    let json_data =
-        serde_json::to_string_pretty(user_settings).expect("Failed to serialize user settings");
-    fs::write("user_settings.json", json_data).expect("Unable to write to file");
-}
-
 pub fn prompt_task(user_settings: &mut UserSettings) -> bool {
     let mut total_productivity_minutes: u64 = user_settings
         .today
@@ -129,6 +122,7 @@ pub fn prompt_task(user_settings: &mut UserSettings) -> bool {
         .sum();
 
     loop {
+        // TODO fix the exit command
         println!("\nEnter task code (C for Coding, R for Reading, A for Action, W for Writing, L for Learning, Ch for Chores, E for Entertainment, or X to exit):");
         let mut task_code = String::new();
         io::stdin()
@@ -167,84 +161,93 @@ pub fn prompt_task(user_settings: &mut UserSettings) -> bool {
         .red()
         .to_string();
 
-        let end_time = get_time_from_user(&end_time_prompt);
+        loop {
+            let end_time = get_time_from_user(&end_time_prompt);
 
-        let duration = end_time.signed_duration_since(start_time_prompt);
+            if end_time < start_time_prompt {
+                println!("End time cannot be earlier than start time. Please try again.");
+            } else {
+                let duration = end_time.signed_duration_since(start_time_prompt);
 
-        println!(
-            "\nYou Spent {} Minutes {}",
-            duration.num_minutes(),
-            task_name
-        );
+                println!(
+                    "\nYou Spent {} Minutes {}",
+                    duration.num_minutes(),
+                    task_name
+                );
 
-        let duration_minutes = duration.num_minutes() as u64;
+                let duration_minutes = duration.num_minutes() as u64;
 
-        if task_name == "Chores" {
-            let task_entry = user_settings
-                .today
-                .todays_chores
-                .entry(task_name.to_string())
-                .or_insert(Task { minutes_spent: 0 });
-            task_entry.minutes_spent += duration_minutes;
-        } else if task_name == "Entertainment" {
-            let task_entry = user_settings
-                .today
-                .todays_entertainment
-                .entry(task_name.to_string())
-                .or_insert(Task { minutes_spent: 0 });
-            task_entry.minutes_spent += duration_minutes;
-        } else {
-            let task_entry = user_settings
-                .today
-                .todays_tasks
-                .entry(task_name.to_string())
-                .or_insert(Task { minutes_spent: 0 });
-            task_entry.minutes_spent += duration_minutes;
+                if task_name == "Chores" {
+                    let task_entry = user_settings
+                        .today
+                        .todays_chores
+                        .entry(task_name.to_string())
+                        .or_insert(Task { minutes_spent: 0 });
+                    task_entry.minutes_spent += duration_minutes;
+                } else if task_name == "Entertainment" {
+                    let task_entry = user_settings
+                        .today
+                        .todays_entertainment
+                        .entry(task_name.to_string())
+                        .or_insert(Task { minutes_spent: 0 });
+                    task_entry.minutes_spent += duration_minutes;
+                } else {
+                    let task_entry = user_settings
+                        .today
+                        .todays_tasks
+                        .entry(task_name.to_string())
+                        .or_insert(Task { minutes_spent: 0 });
+                    task_entry.minutes_spent += duration_minutes;
 
-            total_productivity_minutes += duration_minutes;
-        }
+                    total_productivity_minutes += duration_minutes;
+                }
 
-        save_user_settings(user_settings);
+                save_user_settings(user_settings);
 
-        let hours_productive = total_productivity_minutes / 60;
-        let minutes_productive = total_productivity_minutes % 60;
+                let hours_productive = total_productivity_minutes / 60;
+                let minutes_productive = total_productivity_minutes % 60;
 
-        println!(
-            "{}",
-            format!(
-                "You have been productive for {} hours and {} minutes",
-                hours_productive, minutes_productive
-            )
-            .green()
-        );
+                println!(
+                    "{}",
+                    format!(
+                        "You have been productive for {} hours and {} minutes",
+                        hours_productive, minutes_productive
+                    )
+                    .green()
+                );
 
-        for (task, task_data) in &user_settings.today.todays_tasks {
-            let task_hours = task_data.minutes_spent / 60;
-            let task_minutes = task_data.minutes_spent % 60;
-            println!(
-                "{}: {} hours and {} minutes",
-                task, task_hours, task_minutes
-            );
-        }
+                for (task, task_data) in &user_settings.today.todays_tasks {
+                    let task_hours = task_data.minutes_spent / 60;
+                    let task_minutes = task_data.minutes_spent % 60;
+                    println!(
+                        "{}: {} hours and {} minutes",
+                        task, task_hours, task_minutes
+                    );
+                }
 
-        // Print chores separately
-        for (chore, chore_data) in &user_settings.today.todays_chores {
-            let chore_hours = chore_data.minutes_spent / 60;
-            let chore_minutes = chore_data.minutes_spent % 60;
-            println!(
-                "{}: {} hours and {} minutes",
-                chore, chore_hours, chore_minutes
-            );
-        }
+                // Print chores separately
+                for (chore, chore_data) in &user_settings.today.todays_chores {
+                    let chore_hours = chore_data.minutes_spent / 60;
+                    let chore_minutes = chore_data.minutes_spent % 60;
+                    println!(
+                        "{}: {} hours and {} minutes",
+                        chore, chore_hours, chore_minutes
+                    );
+                }
 
-        // Print entertainment separately
-        for (entertainment, entertainment_data) in &user_settings.today.todays_entertainment {
-            let entertainment_hours = entertainment_data.minutes_spent / 60;
-            let entertainment_minutes = entertainment_data.minutes_spent % 60;
-            println!(
-                "{}: {} hours and {} minutes",
-                entertainment, entertainment_hours, entertainment_minutes
-            );
+                // Print entertainment separately
+                for (entertainment, entertainment_data) in &user_settings.today.todays_entertainment
+                {
+                    let entertainment_hours = entertainment_data.minutes_spent / 60;
+                    let entertainment_minutes = entertainment_data.minutes_spent % 60;
+                    println!(
+                        "{}: {} hours and {} minutes",
+                        entertainment, entertainment_hours, entertainment_minutes
+                    );
+                }
+
+                break;
+            }
         }
     }
 
