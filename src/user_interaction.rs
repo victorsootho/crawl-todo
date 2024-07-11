@@ -149,12 +149,12 @@ pub fn prompt_task(user_settings: &mut UserSettings) -> bool {
         };
 
         let start_time_prompt = get_time_from_user(&format!(
-            "Enter start time for {} (HH:MM) or 'now' for the current time (default is 'now'):",
+            "Enter start time for {} (HH:MM) or 'now' for the current time:",
             task_name
         ));
 
         let end_time_prompt = format!(
-            "Started at {}. Enter end time for {} (HH:MM) or 'now' for the current time (default is 'now'):",
+            "Started at {}. Enter end time for {} (HH:MM) or 'now' for the current time:",
             start_time_prompt.format("%H:%M"),
             task_name
         )

@@ -35,7 +35,6 @@ pub fn load_user_settings() -> UserSettings {
 pub fn save_user_settings(user_settings: &UserSettings) {
     ensure_config_dir();
     let path = get_config_path();
-    println!("Saving settings to: {:?}", path); // Debug print
     let file = OpenOptions::new()
         .write(true)
         .truncate(true)
@@ -44,5 +43,4 @@ pub fn save_user_settings(user_settings: &UserSettings) {
         .expect("Unable to open settings file for writing");
     let writer = BufWriter::new(file);
     serde_json::to_writer_pretty(writer, user_settings).expect("Unable to write settings");
-    println!("Settings saved successfully"); // Debug print
 }
