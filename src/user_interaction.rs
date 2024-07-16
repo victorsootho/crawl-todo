@@ -122,7 +122,6 @@ pub fn prompt_task(user_settings: &mut UserSettings) -> bool {
         .sum();
 
     loop {
-        // TODO fix the exit command
         println!("\nEnter task code (C for Coding, R for Reading, A for Action, W for Writing, L for Learning, Ch for Chores, E for Entertainment, or X to exit):");
         let mut task_code = String::new();
         io::stdin()
@@ -154,7 +153,7 @@ pub fn prompt_task(user_settings: &mut UserSettings) -> bool {
         ));
 
         let end_time_prompt = format!(
-            "Started at {}. Enter end time for {} (HH:MM) or 'now' for the current time:",
+            "Started at {}. Enter end time for {} (HH:MM) or 'now' for the current time (type 'cancel' to cancel this task):",
             start_time_prompt.format("%H:%M"),
             task_name
         )
@@ -162,7 +161,38 @@ pub fn prompt_task(user_settings: &mut UserSettings) -> bool {
         .to_string();
 
         loop {
-            let end_time = get_time_from_user(&end_time_prompt);
+            println!("{}", end_time_prompt);
+            let mut end_time_input = String::new();
+            io::stdin()
+                .read_line(&mut end_time_input)
+                .expect("Failed to read line");
+            let end_time_input = end_time_input.trim().to_lowercase();
+
+            if end_time_input == "cancel" {
+                println!("Task cancelled. Returning to task code prompt.");
+                break;
+            }
+
+            let end_time = if end_time_input.is_empty() || end_time_input == "now" {
+                (Utc::now() + Duration::hours(2)).time()
+            } else if end_time_input.len() == 4 && end_time_input.chars().all(char::is_numeric) {
+                let formatted_time = format!("{}:{}", &end_time_input[0..2], &end_time_input[2..4]);
+                match NaiveTime::parse_from_str(&formatted_time, "%H:%M") {
+                    Ok(time) => time,
+                    Err(_) => {
+                        println!("Invalid time format. Please try again.");
+                        continue;
+                    }
+                }
+            } else {
+                match NaiveTime::parse_from_str(&end_time_input, "%H:%M") {
+                    Ok(time) => time,
+                    Err(_) => {
+                        println!("Invalid time format. Please try again.");
+                        continue;
+                    }
+                }
+            };
 
             if end_time < start_time_prompt {
                 println!("End time cannot be earlier than start time. Please try again.");
